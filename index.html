@@ -358,6 +358,70 @@
             color: var(--text-secondary);
         }
 
+        /* Performance Grid Styles - NEW */
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .performance-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background-color: var(--light-bg);
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        .performance-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .performance-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .performance-info {
+            flex: 1;
+        }
+
+        .performance-value {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .performance-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .performance-change {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .performance-change.positive {
+            color: var(--success-color);
+        }
+
+        .performance-change.negative {
+            color: var(--accent-color);
+        }
+
         /* Tracking Page Styles */
         .content-wrapper {
             display: flex;
@@ -1201,6 +1265,10 @@
                 justify-content: flex-start;
                 gap: 20px;
             }
+
+            .performance-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -1316,14 +1384,63 @@
                 <div class="dashboard-grid">
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h3>Statistik Perjalanan Mingguan</h3>
-                            <select class="filter-select" onchange="updateChart(this.value)">
+                            <h3>Informasi Kinerja Operasional</h3>
+                            <select class="filter-select" onchange="updatePerformanceData(this.value)">
+                                <option value="today">Hari Ini</option>
                                 <option value="week">Minggu Ini</option>
                                 <option value="month">Bulan Ini</option>
-                                <option value="year">Tahun Ini</option>
                             </select>
                         </div>
-                        <canvas id="tripChart" width="400" height="200"></canvas>
+                        <div class="performance-grid" id="performance-data">
+                            <div class="performance-item">
+                                <div class="performance-icon" style="background-color: rgba(46, 204, 113, 0.1); color: var(--success-color);">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="performance-info">
+                                    <div class="performance-value">92%</div>
+                                    <div class="performance-label">Tingkat Keberhasilan</div>
+                                    <div class="performance-change positive">
+                                        <i class="fas fa-arrow-up"></i> 5% dari kemarin
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="performance-item">
+                                <div class="performance-icon" style="background-color: rgba(52, 152, 219, 0.1); color: var(--secondary-color);">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="performance-info">
+                                    <div class="performance-value">4.2 jam</div>
+                                    <div class="performance-label">Rata-rata Waktu Tempuh</div>
+                                    <div class="performance-change positive">
+                                        <i class="fas fa-arrow-down"></i> 15 menit lebih cepat
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="performance-item">
+                                <div class="performance-icon" style="background-color: rgba(243, 156, 18, 0.1); color: var(--warning-color);">
+                                    <i class="fas fa-gas-pump"></i>
+                                </div>
+                                <div class="performance-info">
+                                    <div class="performance-value">8.5 L/100km</div>
+                                    <div class="performance-label">Konsumsi BBM</div>
+                                    <div class="performance-change positive">
+                                        <i class="fas fa-arrow-down"></i> 0.3L lebih efisien
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="performance-item">
+                                <div class="performance-icon" style="background-color: rgba(155, 89, 182, 0.1); color: var(--info-color);">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="performance-info">
+                                    <div class="performance-value">4.8</div>
+                                    <div class="performance-label">Rating Pelanggan</div>
+                                    <div class="performance-change positive">
+                                        <i class="fas fa-arrow-up"></i> 0.2 dari minggu lalu
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="activity-list">
                         <h3>Aktivitas Terkini</h3>
@@ -1870,13 +1987,11 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Global variables
         let selectedTruck = null;
         let map = null;
         let routeMap = null;
-        let tripChart = null;
         let currentPage = 'tracking';
 
         // Sample data
@@ -2058,7 +2173,6 @@
         function initializeApp() {
             renderTruckList();
             initializeMaps();
-            initializeChart();
             renderActivities();
             renderStepper(selectedTruck.route);
             updateTruckDetails(selectedTruck);
@@ -2109,81 +2223,66 @@
                 setTimeout(() => {
                     initializeMaps();
                 }, 100);
-            } else if (page === 'dashboard') {
-                setTimeout(() => {
-                    initializeChart();
-                }, 100);
             }
         }
 
         // Dashboard functions
-        function initializeChart() {
-            if (document.getElementById('tripChart')) {
-                const ctx = document.getElementById('tripChart').getContext('2d');
-                if (tripChart) tripChart.destroy();
+        function updatePerformanceData(period) {
+            const performanceData = {
+                today: [
+                    { value: '92%', label: 'Tingkat Keberhasilan', change: '+5%', icon: 'fa-check-circle', color: 'success' },
+                    { value: '4.2 jam', label: 'Rata-rata Waktu Tempuh', change: '-15 menit', icon: 'fa-clock', color: 'blue' },
+                    { value: '8.5 L/100km', label: 'Konsumsi BBM', change: '-0.3L', icon: 'fa-gas-pump', color: 'orange' },
+                    { value: '4.8', label: 'Rating Pelanggan', change: '+0.2', icon: 'fa-users', color: 'purple' }
+                ],
+                week: [
+                    { value: '89%', label: 'Tingkat Keberhasilan', change: '+3%', icon: 'fa-check-circle', color: 'success' },
+                    { value: '4.5 jam', label: 'Rata-rata Waktu Tempuh', change: '-10 menit', icon: 'fa-clock', color: 'blue' },
+                    { value: '8.8 L/100km', label: 'Konsumsi BBM', change: '-0.1L', icon: 'fa-gas-pump', color: 'orange' },
+                    { value: '4.7', label: 'Rating Pelanggan', change: '+0.1', icon: 'fa-users', color: 'purple' }
+                ],
+                month: [
+                    { value: '91%', label: 'Tingkat Keberhasilan', change: '+7%', icon: 'fa-check-circle', color: 'success' },
+                    { value: '4.3 jam', label: 'Rata-rata Waktu Tempuh', change: '-20 menit', icon: 'fa-clock', color: 'blue' },
+                    { value: '8.6 L/100km', label: 'Konsumsi BBM', change: '-0.5L', icon: 'fa-gas-pump', color: 'orange' },
+                    { value: '4.9', label: 'Rating Pelanggan', change: '+0.3', icon: 'fa-users', color: 'purple' }
+                ]
+            };
+
+            const data = performanceData[period];
+            const container = document.getElementById('performance-data');
+            
+            container.innerHTML = data.map(item => {
+                const changeType = item.change.startsWith('+') ? 'positive' : 'negative';
+                const arrow = item.change.startsWith('+') ? 'fa-arrow-up' : 'fa-arrow-down';
                 
-                tripChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-                        datasets: [{
-                            label: 'Perjalanan Selesai',
-                            data: [12, 19, 15, 25, 22, 30, 28],
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            tension: 0.4
-                        }, {
-                            label: 'Perjalanan Aktif',
-                            data: [8, 11, 13, 15, 12, 18, 16],
-                            borderColor: '#2ecc71',
-                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
+                return `
+                    <div class="performance-item">
+                        <div class="performance-icon" style="background-color: rgba(${getColorByType(item.color)}, 0.1); color: var(--${item.color}-color);">
+                            <i class="fas ${item.icon}"></i>
+                        </div>
+                        <div class="performance-info">
+                            <div class="performance-value">${item.value}</div>
+                            <div class="performance-label">${item.label}</div>
+                            <div class="performance-change ${changeType}">
+                                <i class="fas ${arrow}"></i> ${item.change.substring(1)} ${item.change.includes('menit') ? 'lebih cepat' : item.change.includes('L') ? 'lebih efisien' : 'dari ' + (period === 'today' ? 'kemarin' : period === 'week' ? 'minggu lalu' : 'bulan lalu')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            showToast(`Data diperbarui untuk periode ${period === 'today' ? 'hari ini' : period === 'week' ? 'minggu ini' : 'bulan ini'}`);
         }
 
-        function updateChart(period) {
-            let labels, data1, data2;
-            
-            switch(period) {
-                case 'month':
-                    labels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'];
-                    data1 = [85, 92, 78, 95];
-                    data2 = [45, 52, 48, 58];
-                    break;
-                case 'year':
-                    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'];
-                    data1 = [320, 380, 350, 420, 390, 410];
-                    data2 = [180, 210, 195, 230, 215, 225];
-                    break;
-                default:
-                    labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-                    data1 = [12, 19, 15, 25, 22, 30, 28];
-                    data2 = [8, 11, 13, 15, 12, 18, 16];
-            }
-            
-            tripChart.data.labels = labels;
-            tripChart.data.datasets[0].data = data1;
-            tripChart.data.datasets[1].data = data2;
-            tripChart.update();
-            
-            showToast(`Grafik diperbarui untuk periode ${period === 'month' ? 'bulan ini' : period === 'year' ? 'tahun ini' : 'minggu ini'}`);
+        function getColorByType(color) {
+            const colors = {
+                success: '46, 204, 113',
+                blue: '52, 152, 219',
+                orange: '243, 156, 18',
+                purple: '155, 89, 182'
+            };
+            return colors[color] || '149, 165, 166';
         }
 
         function renderActivities() {
