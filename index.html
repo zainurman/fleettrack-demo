@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Manajemen Armada</title>
+    <title>Sistem Manajemen Armada - FleetTrack</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -47,7 +47,8 @@
             color: white;
             padding: 20px 0;
             overflow-y: auto;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            z-index: 1000;
         }
 
         .sidebar-header {
@@ -96,6 +97,8 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -218,6 +221,64 @@
         .btn-sm {
             padding: 5px 10px;
             font-size: 12px;
+        }
+
+        /* Hamburger Menu Styles */
+        .hamburger-menu {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+            margin-right: 15px;
+        }
+
+        .hamburger-menu:hover {
+            background-color: var(--light-bg);
+        }
+
+        .hamburger-menu.active {
+            color: var(--secondary-color);
+        }
+
+        /* Sidebar Toggle States */
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar.collapsed .sidebar-header h2 span,
+        .sidebar.collapsed .nav-item span {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .sidebar.collapsed .nav-item.active {
+            border-left: none;
+            border-bottom: 3px solid white;
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
         }
 
         /* Dashboard Styles */
@@ -358,7 +419,7 @@
             color: var(--text-secondary);
         }
 
-        /* Performance Grid Styles - NEW */
+        /* Performance Grid Styles */
         .performance-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -1209,12 +1270,31 @@
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
-                width: 60px;
+                position: fixed;
+                left: -250px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.active {
+                left: 0;
+            }
+            
+            .sidebar.collapsed {
+                width: 250px;
+                left: -250px;
+            }
+            
+            .sidebar.collapsed.active {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
             }
 
-            .sidebar-header h2 span,
-            .nav-item span {
-                display: none;
+            .hamburger-menu {
+                display: block;
             }
 
             .stats-grid {
@@ -1270,12 +1350,18 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        @media (min-width: 769px) {
+            .hamburger-menu {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2><i class="fas fa-truck"></i> <span>FleetTrack</span></h2>
             </div>
@@ -1314,6 +1400,9 @@
         <!-- Main Content -->
         <div class="main-content">
             <div class="header">
+                <button class="hamburger-menu" id="hamburger-menu" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <h1 id="page-title">Tracking Kendaraan</h1>
                 <div class="header-actions">
                     <button class="notification-btn" onclick="showNotifications()">
@@ -1966,6 +2055,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebarOverlay()"></div>
 
     <!-- Modal -->
     <div class="modal" id="modal">
@@ -3031,12 +3123,10 @@
             }
             
             showToast(`Menampilkan laporan dari ${startDate} sampai ${endDate}`);
-            // Here you would typically fetch filtered data from the server
         }
 
         function exportReports() {
             showToast('Mengekspor laporan...');
-            // Simulate export
             setTimeout(() => {
                 showToast('Laporan berhasil diekspor');
             }, 2000);
@@ -3062,7 +3152,6 @@
             const language = document.getElementById('language').value;
             const timezone = document.getElementById('timezone').value;
             
-            // Here you would save these settings to the server
             showToast('Pengaturan umum berhasil disimpan');
         }
 
@@ -3098,7 +3187,6 @@
                 return;
             }
             
-            // Here you would update the password on the server
             showToast('Password berhasil diperbarui');
             
             // Clear fields
@@ -3250,6 +3338,104 @@
             }
         }
 
+        // Sidebar Toggle Function
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const hamburger = document.getElementById('hamburger-menu');
+            const mainContent = document.querySelector('.main-content');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            // Check if mobile or desktop
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Mobile: Show/hide sidebar
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+                hamburger.classList.toggle('active');
+                
+                // Change icon
+                const icon = hamburger.querySelector('i');
+                if (sidebar.classList.contains('active')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
+            } else {
+                // Desktop: Collapse/expand sidebar
+                sidebar.classList.toggle('collapsed');
+                hamburger.classList.toggle('active');
+                
+                // Adjust main content margin
+                if (sidebar.classList.contains('collapsed')) {
+                    mainContent.style.marginLeft = '0';
+                } else {
+                    mainContent.style.marginLeft = '250px';
+                }
+                
+                // Change icon
+                const icon = hamburger.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-angle-double-right');
+                } else {
+                    icon.classList.remove('fa-angle-double-right');
+                    icon.classList.add('fa-bars');
+                }
+            }
+        }
+
+        // Close sidebar when clicking overlay
+        function closeSidebarOverlay() {
+            const sidebar = document.getElementById('sidebar');
+            const hamburger = document.getElementById('hamburger-menu');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            hamburger.classList.remove('active');
+            
+            // Reset icon
+            const icon = hamburger.querySelector('i');
+            icon.classList.remove('fa-times');
+            icon.classList.add('fa-bars');
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const hamburger = document.getElementById('hamburger-menu');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (window.innerWidth > 768) {
+                // Desktop mode
+                overlay.classList.remove('active');
+                sidebar.classList.remove('active');
+                
+                // Reset hamburger icon for desktop
+                const icon = hamburger.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-angle-double-right');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
+            } else {
+                // Mobile mode
+                mainContent.style.marginLeft = '0';
+                sidebar.classList.remove('collapsed');
+                
+                // Reset hamburger icon for mobile
+                const icon = hamburger.querySelector('i');
+                icon.classList.remove('fa-angle-double-right');
+                icon.classList.add('fa-bars');
+            }
+        });
+
         // Close modal when clicking outside
         document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) {
@@ -3259,4 +3445,3 @@
     </script>
 </body>
 </html>
-
